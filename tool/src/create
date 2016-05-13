@@ -1,0 +1,80 @@
+#!/usr/bin/make -f
+
+#
+# \brief  Tool for assembling a source package
+# \author Norman Feske
+# \date   2016-05-13
+#
+
+# genode-pkg directory
+export TOP_DIR := $(realpath $(dir $(MAKEFILE_LIST))/../..)
+
+usage:
+	@echo
+	@echo "Tool for assembling a source package"
+	@echo
+	@echo "usage:"
+	@echo
+	@echo "  $(notdir $(MAKEFILE_LIST)) <pkgname>"
+	@echo
+	@echo "  <pkgname>   name of the source package"
+	@echo
+
+include $(TOP_DIR)/tool/mk/front_end.inc
+
+
+#
+# The target is the name of the package
+#
+PKG := $(TARGET)
+
+#
+# Define location of recipe and the exported package
+#
+EXPECTED_RECIPE_DIR := $(RECIPES_DIR)/src/$(PKG)
+EXPORT_SUB_DIR := $(EXPORT_DIR)/src
+
+#
+# Include common package-creation steps
+#
+include $(TOP_DIR)/tool/mk/create_src_pkg.inc
+
+#
+# Add used_apis information, supplemented with the current API hashes
+#
+$(EXPORT_PKG_DIR)/hash: $(EXPORT_PKG_DIR)/used_apis
+$(EXPORT_PKG_DIR)/used_apis: $(EXPORT_PKG_DIR)
+$(EXPORT_PKG_DIR)/used_apis: $(RECIPE_DIR)/used_apis
+	$(VERBOSE) \
+	for api in $(shell cat $<); do \
+	  hash_file=$(RECIPES_DIR)/api/$$api/hash; \
+	  if [ ! -f $$hash_file ]; then \
+	  echo "Error: Package $(PKG) depends on nonexisting API hash file,"; \
+	    echo "       expected $$hash_file"; \
+	    rm -r $(EXPORT_PKG_DIR); \
+	    result=false; \
+	    break; \
+	  fi; \
+	  hash=$$(< $$hash_file); \
+	  echo "$$api-$$hash" >> $@; \
+	done; $$result
+
+#
+# If the package is a library, add the hash of its implemented API
+#
+ifneq ($(wildcard $(RECIPE_DIR)/api),)
+$(EXPORT_PKG_DIR)/hash: $(EXPORT_PKG_DIR)/api
+endif
+$(EXPORT_PKG_DIR)/api: $(EXPORT_PKG_DIR)
+$(EXPORT_PKG_DIR)/api: $(RECIPE_DIR)/api
+	$(VERBOSE) \
+	api=$$(< $<); hash_file=$(RECIPES_DIR)/api/$$api/hash; \
+	  if [ ! -f $$hash_file ]; then \
+	    echo "Error: Library $(PKG) implements unknown API '$$api',"; \
+	    echo "       expected $$hash_file"; \
+	    rm -r $(EXPORT_PKG_DIR); \
+	    exit -1; \
+	  fi; \
+	  hash=$$(< $$hash_file); \
+	  echo "$$api-$$hash" >> $@;
+

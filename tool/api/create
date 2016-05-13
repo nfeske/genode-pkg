@@ -1,0 +1,51 @@
+#!/usr/bin/make -f
+
+#
+# \brief  Tool for assembling an API package
+# \author Norman Feske
+# \date   2016-05-13
+#
+
+# genode-pkg directory
+export TOP_DIR := $(realpath $(dir $(MAKEFILE_LIST))/../..)
+
+usage:
+	@echo
+	@echo "Tool for assembling an API package"
+	@echo
+	@echo "usage:"
+	@echo
+	@echo "  $(notdir $(MAKEFILE_LIST)) <apiname>"
+	@echo
+	@echo "  <apiname>   name of API, usually the name of the library that"
+	@echo "              implements the API"
+	@echo
+
+include $(TOP_DIR)/tool/mk/front_end.inc
+
+
+#
+# The target is the name of the package
+#
+PKG := $(TARGET)
+
+#
+# Define location of recipe and the exported package
+#
+EXPECTED_RECIPE_DIR := $(RECIPES_DIR)/api/$(PKG)
+EXPORT_SUB_DIR      := $(EXPORT_DIR)/api
+
+#
+# Include common package-creation steps
+#
+include $(TOP_DIR)/tool/mk/create_src_pkg.inc
+
+#
+# Add suplements that are specific for API packages
+#
+$(EXPORT_PKG_DIR)/hash: $(EXPORT_PKG_DIR)/symbols
+
+$(EXPORT_PKG_DIR)/symbols: $(EXPORT_PKG_DIR)
+
+$(EXPORT_PKG_DIR)/symbols: $(RECIPE_DIR)/symbols
+	$(VERBOSE)cp $< $@

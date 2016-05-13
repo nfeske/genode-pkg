@@ -1,0 +1,50 @@
+#!/usr/bin/make -f
+
+#
+# \brief  Tool for assembling a binary package
+# \author Norman Feske
+# \date   2016-05-17
+#
+
+# genode-pkg directory
+export TOP_DIR := $(realpath $(dir $(MAKEFILE_LIST))/../..)
+
+usage:
+	@echo
+	@echo "Tool for building a binary package"
+	@echo
+	@echo "usage:"
+	@echo
+	@echo "  $(notdir $(MAKEFILE_LIST)) <pkgname>"
+	@echo
+	@echo "  <pkgname>   name of the source package to build"
+	@echo
+
+include $(TOP_DIR)/tool/mk/front_end.inc
+
+
+#
+# The target is the name of the package
+#
+PKG := $(TARGET)
+
+#
+# Define location of source recipe and the exported binary package
+#
+EXPECTED_RECIPE_DIR := $(RECIPES_DIR)/src/$(PKG)
+EXPORT_SUB_DIR := $(EXPORT_DIR)/src
+
+# * look up hash of the source package from the src recipe
+# * look for source package, stop if it does not exist
+# * look for src/api to determine whether to build a library or a target
+# * if building a library, concatenate pkg name as <apihash>/<srchash>
+# * if building a target, set pkg name to <srchash>
+# * create pkg directory, which corrsponds to a Genode build directory
+# * configure the build.conf
+#   * REPOSITORIES point to the source package and all used api packages
+#     the list of used api packages comes from the '<srcdir>/used_apis'
+#     file. Validate that all APIs exist before issueing the build
+# * start the build system, distinguish the building of libraries from
+#   the building of target packages:
+#   * Libraries: make LIB=<pkgname>
+#   * Targets;   make (build all targets present in the source package)
