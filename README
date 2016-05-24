@@ -14,3 +14,43 @@ to the Genode mailing list [2].
 
 [1] http;//genode.org
 [2] http://genode.org/community/mailing-lists
+
+
+Usage
+-----
+
+* Clone nfeske's Genode repository to the root of the genode-pkg repository.
+  Alternatively, you may create a symbolic link called "genode" that points
+  to the Genode source tree.
+
+  ! git clone https://github.com/nfeske/genode.git genode
+
+* Checkout the 'pkg' branch that contains a few supplemental build-system
+  features not yet avaiable in Genode's master branch:
+
+  ! cd genode
+  ! git checkout pkg
+  ! cd ..
+
+* Create an API package for the 'ld' library:
+
+  ! ./tool/api/create ld
+
+  The recipe for the API package is taken from _recipes/api/ld/_. The
+  resulting API package is generated to _export/api/ld-<api-hash>/_.
+
+* Create a source package for 'libc', which uses the 'ld' API and, in turn,
+  implements the 'libc' API:
+
+  ! ./tool/src/create libc
+
+  The recipe for the source package is taken from _recipes/src/libc/_.
+  The source package is generated at _export/src/libc-<src-hash>/_.
+
+
+Work in progress
+----------------
+
+* Tool for building a binary package (the first fragments are located
+  at _tool/pkg/build_)
+
