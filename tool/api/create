@@ -43,9 +43,28 @@ include $(TOP_DIR)/tool/mk/create_src_pkg.inc
 #
 # Add suplements that are specific for API packages
 #
+ifneq ($(wildcard $(RECIPE_DIR)/symbols),)
 $(EXPORT_PKG_DIR)/hash: $(EXPORT_PKG_DIR)/symbols
+endif
 
 $(EXPORT_PKG_DIR)/symbols: $(EXPORT_PKG_DIR)
 
 $(EXPORT_PKG_DIR)/symbols: $(RECIPE_DIR)/symbols
 	$(VERBOSE)cp $< $@
+
+$(EXPORT_PKG_DIR)/hash: $(EXPORT_PKG_DIR)/lib/mk/$(PKG).mk
+
+$(EXPORT_PKG_DIR)/lib/mk/$(PKG).mk:
+	$(VERBOSE)mkdir -p $(dir $@)
+	$(VERBOSE) \
+	( echo "SRC_SYMBOLS = symbols"; \
+	  echo "vpath symbols \$$(REP_DIR)" ) > $@
+
+EMPTY_HOOK_LIBS := $(addprefix $(EXPORT_PKG_DIR)/lib/mk/,\
+                               platform.mk)
+
+$(EXPORT_PKG_DIR)/hash: $(EMPTY_HOOK_LIBS)
+
+$(EMPTY_HOOK_LIBS):
+	$(VERBOSE)touch $@
+

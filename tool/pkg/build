@@ -22,6 +22,8 @@ usage:
 
 include $(TOP_DIR)/tool/mk/front_end.inc
 
+.NOTPARALLEL: $(TARGET)
+
 
 #
 # The target is the name of the package
@@ -32,18 +34,120 @@ PKG := $(TARGET)
 # Define location of source recipe and the exported binary package
 #
 EXPECTED_RECIPE_DIR := $(RECIPES_DIR)/src/$(PKG)
-EXPORT_SUB_DIR := $(EXPORT_DIR)/src
+EXPORT_SRC_DIR := $(EXPORT_DIR)/src
 
-# * look up hash of the source package from the src recipe
-# * look for source package, stop if it does not exist
-# * look for src/api to determine whether to build a library or a target
-# * if building a library, concatenate pkg name as <apihash>/<srchash>
-# * if building a target, set pkg name to <srchash>
-# * create pkg directory, which corrsponds to a Genode build directory
-# * configure the build.conf
-#   * REPOSITORIES point to the source package and all used api packages
-#     the list of used api packages comes from the '<srcdir>/used_apis'
-#     file. Validate that all APIs exist before issueing the build
+
+#
+# Look up hash of the source package from the src recipe
+#
+
+EXPECTED_SRC_HASH_FILE := $(EXPECTED_RECIPE_DIR)/hash
+SRC_HASH_FILE := $(wildcard $(EXPECTED_SRC_HASH_FILE))
+
+ifeq ($(SRC_HASH_FILE),)
+PKG :=
+$(TARGET): src_hash_file_missing
+src_hash_file_missing:
+	@$(ECHO) "Error: Source package hash file missing,"
+	@$(ECHO) "       expected at '$(EXPECTED_SRC_HASH_FILE)'"
+	@false
+else
+SRC_HASH := $(shell cat $(EXPECTED_RECIPE_DIR)/hash)
+endif
+
+
+#
+# Check for missing SPEC argument
+#
+
+ifeq ($(SPEC),)
+PKG :=
+$(TARGET): missing_spec_argument
+missing_spec_argument:
+	@$(ECHO) "Error: missing SPEC argument"
+	@false
+endif
+
+
+#
+# Look for source package
+#
+# XXX stop if it does not exist
+#
+
+SRC_DIR := $(EXPORT_SRC_DIR)/$(PKG)-$(SRC_HASH)
+
+
+#
+# Look for src/api to determine whether to build a library or a target.
+# If building a library, concatenate pkg dir as <apihash>/<srchash>.
+# Otherwise use <srchash> has pkg dir.
+#
+
+API_FILE := $(SRC_DIR)/api
+ifneq ($(wildcard $(API_FILE)),)
+EXPORT_PKG_BUILD_DIR := $(EXPORT_DIR)/$(SPEC)/$(shell cat $(API_FILE))/$(PKG)-$(SRC_HASH).build
+else
+EXPORT_PKG_BUILD_DIR := $(EXPORT_DIR)/$(SPEC)/$(PKG)-$(SRC_HASH).build
+endif
+
+
+#
+# Create pkg build directory, which corrsponds to a Genode build directory
+#
+# etc/build.conf: REPOSITORIES point to the source package and all used api
+# packages. The list of used api packages comes from the '<srcdir>/used_apis'
+# file.
+#
+# XXX Validate that all APIs exist before issueing the build
+#
+
+# if building a library, always incorporate the API implemented by the library
+ifneq ($(wildcard $(API_FILE)),)
+USED_APIS += $(shell cat $(API_FILE))
+endif
+
+# incorporate all APIs used by the source package
+USED_APIS_FILE := $(SRC_DIR)/used_apis
+ifneq ($(wildcard $(USED_APIS_FILE)),)
+USED_APIS += $(shell cat $(USED_APIS_FILE))
+endif
+
+#ifneq ($(wildcard $(EXPORT_PKG_BUILD_DIR)),)
+#PKG :=
+#$(TARGET): build_dir_already_exists
+#build_dir_already_exists:
+#	@$(ECHO) "Error: '$(EXPORT_PKG_BUILD_DIR)' already exists"
+#	@false
+#endif
+
+BUILD_CONF := $(EXPORT_PKG_BUILD_DIR)/etc/build.conf
+SPECS_CONF := $(EXPORT_PKG_BUILD_DIR)/etc/specs.conf
+TOOLS_CONF := $(EXPORT_PKG_BUILD_DIR)/etc/tools.conf
+
+$(TARGET): $(BUILD_CONF) $(SPECS_CONF) $(TOOLS_CONF)
+	@$(MSG_PREFIX)entering $(EXPORT_PKG_BUILD_DIR)
+	$(VERBOSE)$(MAKE) -f $(GENODE_DIR)/tool/builddir/build.mk \
+	                  -C $(EXPORT_PKG_BUILD_DIR) LIB=$(PKG)
+	@$(MSG_PREFIX)build completed
+
+$(BUILD_CONF):
+	$(VERBOSE)mkdir -p $(dir $@)
+	$(VERBOSE) \
+	( echo "GENODE_DIR := $(GENODE_DIR)"; \
+	  echo "BASE_DIR := $(GENODE_DIR)/repos/base"; \
+	  echo "REPOSITORIES := $(SRC_DIR)"; \
+	  for api in $(USED_APIS); do \
+	      echo "REPOSITORIES += $(EXPORT_DIR)/api/$$api"; done \
+	) > $(BUILD_CONF)
+
+$(SPECS_CONF):
+	$(VERBOSE)mkdir -p $(dir $@)
+	$(VERBOSE)echo "SPECS += genode $(SPEC)" > $@
+
+$(TOOLS_CONF):
+	$(VERBOSE)cp $(GENODE_DIR)/repos/base/etc/tools.conf $@
+
 # * start the build system, distinguish the building of libraries from
 #   the building of target packages:
 #   * Libraries: make LIB=<pkgname>

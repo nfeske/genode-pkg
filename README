@@ -32,9 +32,14 @@ Usage
   ! git checkout pkg
   ! cd ..
 
-* Create an API package for the 'ld' library:
+* Create an API packages for the 'so', 'ld', and 'libc' libraries. The
+  'ld' library is the dynamic linker providing the Genode API. The 'so'
+  library contains initialization support for shared objects. It is used
+  by all libraries.
 
+  ! ./tool/api/create so
   ! ./tool/api/create ld
+  ! ./tool/api/create libc
 
   The recipe for the API package is taken from _recipes/api/ld/_. The
   resulting API package is generated to _export/api/ld-<api-hash>/_.
@@ -47,10 +52,7 @@ Usage
   The recipe for the source package is taken from _recipes/src/libc/_.
   The source package is generated at _export/src/libc-<src-hash>/_.
 
+* Build libc package
 
-Work in progress
-----------------
-
-* Tool for building a binary package (the first fragments are located
-  at _tool/pkg/build_)
+  ! ./tool/pkg/build -j4 libc SPEC=x86_32
 

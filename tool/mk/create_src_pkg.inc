@@ -93,18 +93,6 @@ _check_hash: $(EXPORT_PKG_DIR)/hash $(RECIPE_HASH_FILE)
 		          "\nYou may update the recipe hash via the following command:\n" \
 		          "\n  echo" $$hash "> $(RECIPE_HASH_FILE)\n"; )
 
-$(EXPORT_PKG_DIR)/hash: _check_license
-
-#
-# Check for the presence of licensing information. It is the job of the
-# content.mk file to generate a LICENSE file.
-#
-_check_license: $(EXPORT_PKG_DIR)/include
-	@$(VERBOSE)test -f $(EXPORT_PKG_DIR)/LICENSE ||\
-		( $(ECHO) "Error: recipe at '$(RECIPE_DIR)' defines no LICENSE"; \
-		  rm -r $(EXPORT_PKG_DIR); \
-		  false )
-
 #
 # Generate the hash from the package content
 #
